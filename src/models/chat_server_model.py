@@ -1,5 +1,7 @@
 import socket
 from select import select
+from json import dumps, loads
+
 
 class Server:
     def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
@@ -32,13 +34,14 @@ class Server:
         """Handle a single incoming connection"""
         client, address = self.socket.accept()
         self.connections.append(client)
-        print(" * Succefully connected to {}:{}".format(address[0], address[1]))
+        print(
+            " * Succefully connected to {}:{}".format(address[0], address[1]))
         return client
 
     def get_message(self, client):
         """Recieve a message from a client"""
         return client.recv(self.buffer_size).decode()
-    
+
     def send_message(self, client, message):
         """Send a message to a client"""
         client.send(message.encode())
@@ -53,28 +56,52 @@ class Server:
 class Chat (Server):
     def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
         super().__init__(ip, port, max_connections, buffer_size)
+        self.id = '{}:{}'.format(self.ip, self.port)
         self.create()
         self.listen()
 
+    def create_package(self, type, data, sender_id):
+        """Create a package package
+        Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!}
+        """
+        package = {
+            'type': type,
+            'data': data,
+            'sender_id': sender_id,
+        }
+        return dumps(package)
+
+    def parse_package(self, package):
+        """Parse a package from a client
+        Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!, target_room_id: 1 || None}
+        """
+        return loads(package)
+    
     def build_menu(self, rooms):
-        menu = """Chat rooms:\n\n{}""".format(''.join([str(room.get_room_info()) for room in rooms.values()]))
+        menu = """Chat rooms:\n\n{}""".format(
+            ''.join([str(room.get_room_info()) for room in rooms.values()]))
         return menu
 
     def handle_new_client(self, rooms):
         new_client = self.accept_connection()
-        new_client.send(self.build_menu(rooms).encode())
-        target_room_id = new_client.recv(self.buffer_size).decode()
-        print('client {} wants to join room: {}'.format(new_client.getpeername(), target_room_id))
-        target_room_id = int(target_room_id)
-        if target_room_id in rooms:
-            rooms[target_room_id].add_client(new_client)
-            print('client {} has joined room: {}'.format(new_client.getpeername(), target_room_id))
-          
-        else:
-            print('room {} does not exist'.format(target_room_id))
+        menu = self.build_menu(rooms)
+        package = self.create_package('menu', menu, self.id)
+        new_client.send(package.encode())  # send menu to new client
+
+
+#        target_room_id = new_client.recv(self.buffer_size).decode()
+#        print('client {} wants to join room: {}'.format(new_client.getpeername(), target_room_id))
+#        target_room_id = int(target_room_id)
+#        if target_room_id in rooms:
+#            rooms[target_room_id].add_client(new_client)
+#            print('client {} has joined room: {}'.format(new_client.getpeername(), target_room_id))
+#
+#        else:
+#            print('room {} does not exist'.format(target_room_id))
         return rooms
 
     def monitor(self):
-        readable_changes, _, _= select(self.connections + [self.socket], [] , [])
+        readable_changes, _, _ = select(
+            self.connections + [self.socket], [], [])
         return readable_changes
-        
+
