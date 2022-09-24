@@ -66,7 +66,7 @@ class Chat (Server):
         self.number_of_rooms += 1
         return str(self.number_of_rooms)
     
-    def create_package(self, type, data, sender_id):
+    def create_package(self, type, data, sender_id, sender_username):
         """Create a package package
         Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!}
         """
@@ -74,6 +74,7 @@ class Chat (Server):
             'type': type,
             'data': data,
             'sender_id': sender_id,
+            'sender_username': sender_username
         }
         return dumps(package)
 
@@ -84,9 +85,10 @@ class Chat (Server):
         print('parsing package: {}'.format(package))
         return loads(package)
     
-    def send_room_message(self, room, message):
+    def send_room_message(self, sender, room, package):
         for client in room.clients:
-            client.send(message.encode())
+            if client != sender:
+                client.send(dumps(package).encode())
 
     def build_menu(self, rooms):
         menu = """Chat rooms:\n\n{}""".format(
@@ -96,7 +98,7 @@ class Chat (Server):
     def handle_new_client(self, rooms):
         new_client = self.accept_connection()
         menu = self.build_menu(rooms)
-        package = self.create_package('menu', menu, self.id)
+        package = self.create_package('menu', menu, self.id, 'Server')
         new_client.send(package.encode())  # send menu to new client
 
     def monitor(self):
@@ -104,12 +106,13 @@ class Chat (Server):
             self.connections + [self.socket], [], [])
         return readable_changes
 
-    def handle_client_request(self, client, rooms):
+    def handle_client_request(self, client, rooms): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
         if package['type'] == 'message':
             print(' * Recieved message from {}({}): {}'.format( 
                 package['sender_username'],
                 package['sender_id'], package['data']))
+            self.send_room_message(client, rooms[package['target_room_id']], package)
             
         
         
