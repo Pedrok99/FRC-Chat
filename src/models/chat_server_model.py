@@ -91,15 +91,9 @@ class Chat (Server):
                 client.send(dumps(package).encode())
 
     def build_menu(self, rooms):
-        menu = """Chat rooms:\n\n{}""".format(
+        menu = """Chat rooms:\n{}""".format(
             ''.join([str(room.get_room_info()) for room in rooms.values()]))
         return menu
-
-    def handle_new_client(self, rooms):
-        new_client = self.accept_connection()
-        menu = self.build_menu(rooms)
-        package = self.create_package('menu', menu, self.id, 'Server')
-        new_client.send(package.encode())  # send menu to new client
 
     def monitor(self):
         readable_changes, _, _ = select(
@@ -131,9 +125,18 @@ class Chat (Server):
             else:
                 print(' * Room {} does not exist'.format(target_room_id))
 
+        elif package['type'] == 'list_rooms':
+            menu = self.build_menu(rooms)
+            package = self.create_package('menu', menu, self.id, 'Server')
+            client.send(package.encode())
+            
+        elif package['type'] == 'create_room':
+            print('create room')
+        
         elif package['type'] == 'disconnect':
             print(' * {} pistolou e kitou. Tinha que ser careca :( '.format(package['sender_username']))
             self.connections.remove(client)
-            rooms[package['target_room_id']].remove_client(client)
+            if package['target_room_id'] in rooms:
+                rooms[package['target_room_id']].remove_client(client)
             client.close()
 

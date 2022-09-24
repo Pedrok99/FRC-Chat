@@ -16,7 +16,7 @@ try:
     print('>>')
     for client in updates:
       if client is chat_manager.socket:
-        chat_manager.handle_new_client(rooms)
+        chat_manager.accept_connection()
       else:
         chat_manager.handle_client_request(client, rooms)
 except KeyboardInterrupt:

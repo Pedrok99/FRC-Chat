@@ -4,6 +4,7 @@ from json import dumps, loads
 from select import select
 from sys import stdin
 
+
 class Client:
     def __init__(self, host, port, buffer_size=1024):
         self.server_host = host
@@ -16,7 +17,6 @@ class Client:
         self.ip = self.socket.getsockname()[0]
         self.port = self.socket.getsockname()[1]
         self.id = '{}:{}'.format(self.ip, self.port)
-
 
     def receive(self):
         return self.socket.recv(1024).decode()
@@ -33,7 +33,15 @@ class ChatClient (Client):
         super().__init__(host, port, buffer_size)
         self.connect()
         self.connected_room = None
-        
+        self.available_commands = {
+            '/commands': 'Show available commands',
+            '/rooms': 'Show all rooms',
+            '/join': 'Join a room',
+            '/leave': 'Leave the current room',
+            '/quit': 'Quit the chat app'
+        }
+
+    # package managment methods
     def create_package(self, package_type, data, target_room_id=None):
         """Create a package
             Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!, target_room_id: 1}
@@ -50,40 +58,69 @@ class ChatClient (Client):
     def parse_package(self, package):
         """Parse a package"""
         return loads(package)
+    # remove method later
 
     def configure_client(self, username):
         self.username = username
 
-    def wait_for_response(self):
-        recieved_package = ''
-        while True:
-            recieved_package = self.receive()
-            if recieved_package:
-                return self.parse_package(recieved_package)
-            sleep(0.3)
-    
+    # commands methods - /commands
+    def show_commands(self):
+        print('Commands:')
+        for command, description in self.available_commands.items():
+            print('  {} - {}'.format(command, description))
+
+    # commands methods - /join
     def join_room(self):
         selected_room = input('Enter the desired room: ')
         self.send(self.create_package('join_room', None, selected_room))
         self.connected_room = selected_room
-            
+
+    # command method - /rooms
+    def list_rooms(self):
+        request_package = self.create_package('list_rooms', None)
+        self.send(request_package)
+
+    # command method - /quit
+    def disconnect(self):
+        self.send(self.create_package('disconnect', None))
+        self.close()
+        
+    
+    # chat methods
     def send_message(self, message):
         """Send a package to the server"""
         self.send(self.create_package('message', message))
-     
-    def handle_chat_message(self, package):
-        
-        print('{}: {}'.format(package['sender_username'], package['data']))  
-        
+
+    # handlers
+    def handle_server_package(self, package):
+        if package['type'] == 'message':
+            print('{} >> {}'.format(
+                package['sender_username'], package['data']))
+        elif package['type'] == 'menu':
+            print('{}\n'.format(package['data']))
+
     def monitor(self):
         readable_changes, _, _ = select([self.socket, stdin], [], [])
         for change in readable_changes:
             if change == self.socket:
-                self.handle_chat_message(self.parse_package(self.receive()))
+                self.handle_server_package(self.parse_package(self.receive()))
             elif change == stdin:
                 message = stdin.readline().strip()
-                self.send_message(message)
-    
-    def disconnect(self):
-        self.send(self.create_package('disconnect', None))
-        self.close()
+                if message.startswith('/'):
+                    self.command_handler(message)
+                else:
+                    self.send_message(message)
+
+    def command_handler(self, command):
+        if command not in self.available_commands:
+            print(' * Command not found, please try again')
+        elif command == '/commands':
+            self.show_commands()
+        elif command == '/rooms':
+            self.list_rooms()
+        elif command == '/join':
+            self.join_room()
+        elif command == '/quit':
+            print('Exiting app...')
+            self.disconnect()
+            exit(0)

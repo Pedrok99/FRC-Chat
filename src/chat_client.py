@@ -1,15 +1,19 @@
 
 from models.chat_client_model import ChatClient
+from utils.utils import clear_terminal, show_commands
 
 chat_client = ChatClient('localhost', 2222)
 
 chat_client.configure_client(input('Enter your username: '))
 
-menu = chat_client.wait_for_response()['data'] # Wait for the menu to be sent
+clear_terminal()
 
-print(menu)
+chat_client.show_commands()
 
-chat_client.join_room()
+
+
+#chat_client.join_room()
+
 
 
 try:
