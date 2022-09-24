@@ -3,26 +3,24 @@ from models.chat_server_model import Chat
 from models.chat_room import Room
 from utils.utils import clear_terminal
 
-lastRoomId = 0
 
 rooms = {}
 
 chat_manager = Chat()
 
-rooms[lastRoomId] = Room(lastRoomId, 'Main Lobby', max_clients=99)
-lastRoomId += 1
+fixed_lobby_id = chat_manager.get_new_room_id()
+rooms[fixed_lobby_id] = Room(fixed_lobby_id, 'Main Lobby', max_clients=99)
+
 
 try: 
   while True:
-    #clear_terminal()
-    print(chat_manager.build_menu(rooms))
     updates = chat_manager.monitor()
-    
+    #print(chat_manager.build_menu(rooms))
     for client in updates:
       if client is chat_manager.socket:
-        rooms = chat_manager.handle_new_client(rooms)
+        chat_manager.handle_new_client(rooms)
       else:
-        print('Recieved message from {}: {}'.format(client.getpeername(), chat_manager.get_message(client)))
+        chat_manager.handle_client_request(client, rooms)
 
     sleep(2)
 except KeyboardInterrupt:

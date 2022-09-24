@@ -1,6 +1,7 @@
 import socket
 from select import select
 from json import dumps, loads
+from struct import pack
 
 
 class Server:
@@ -57,6 +58,7 @@ class Chat (Server):
     def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
         super().__init__(ip, port, max_connections, buffer_size)
         self.id = '{}:{}'.format(self.ip, self.port)
+        self.number_of_rooms = 0
         self.create()
         self.listen()
 
@@ -88,20 +90,42 @@ class Chat (Server):
         package = self.create_package('menu', menu, self.id)
         new_client.send(package.encode())  # send menu to new client
 
-
-#        target_room_id = new_client.recv(self.buffer_size).decode()
-#        print('client {} wants to join room: {}'.format(new_client.getpeername(), target_room_id))
-#        target_room_id = int(target_room_id)
-#        if target_room_id in rooms:
-#            rooms[target_room_id].add_client(new_client)
-#            print('client {} has joined room: {}'.format(new_client.getpeername(), target_room_id))
-#
-#        else:
-#            print('room {} does not exist'.format(target_room_id))
-        return rooms
-
     def monitor(self):
         readable_changes, _, _ = select(
             self.connections + [self.socket], [], [])
         return readable_changes
 
+    def handle_client_request(self, client, rooms):
+        package = self.parse_package(client.recv(self.buffer_size).decode())
+        #print('package: {}'.format(package))
+        if package['type'] == 'message':
+            print(' * Recieved message from {}({}): {}'.format( 
+                package['sender_username'],
+                package['sender_id'], package['data']))
+        
+        if package['type'] == 'join_room':
+            print(' * Client {} wants to join room: {}'.format(package['sender_username'], package['target_room_id']))
+            target_room_id = package['target_room_id']
+            username = package['sender_username']
+            sender_id = package['sender_id']
+
+            if target_room_id in rooms:
+                if(rooms[target_room_id].can_join()):
+                    rooms[target_room_id].add_client(client)
+                    print(' * Client {} ({}) has joined room: {}'.format(username, sender_id, target_room_id))
+                else:
+                    print(' * Client {} ({}) could not join room: {}'.format(username, sender_id, target_room_id))
+            else:
+                print(' * Room {} does not exist'.format(target_room_id))
+
+        elif package['type'] == 'disconnect':
+            print(' * {} pistolou e kitou. Tinha que ser careca :( '.format(package['sender_username']))
+            self.connections.remove(client)
+            rooms[package['target_room_id']].remove_client(client)
+            client.close()
+
+
+    def get_new_room_id(self):
+        """Get a new room id"""
+        self.number_of_rooms += 1
+        return str(self.number_of_rooms)

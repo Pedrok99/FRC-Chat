@@ -14,3 +14,5 @@ class Room:
     def add_client(self, client):
         self.clients.append(client)
         
+    def remove_client(self, client):
+        self.clients.remove(client)
