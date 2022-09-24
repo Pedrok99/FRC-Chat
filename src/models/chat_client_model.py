@@ -1,6 +1,7 @@
 import socket
 from time import sleep
 from json import dumps, loads
+from select import select
 
 
 class Client:
@@ -64,6 +65,14 @@ class ChatClient (Client):
         self.send(self.create_package('join_room', None, selected_room))
         self.connected_room = selected_room
             
+    def send_message(self, message):
+        self.send(self.create_package('message', message))
+        
+    def monitor(self):
+        readable_changes, _, _ = select([self.socket], [], [], 0.25)
+#        if readable_changes:
+#            print(self.parse_package(self.receive()))
+    
     def disconnect(self):
         self.send(self.create_package('disconnect', None))
         self.close()

@@ -10,14 +10,16 @@ menu = chat_client.wait_for_response()['data'] # Wait for the menu to be sent
 print(menu)
 
 chat_client.join_room()
- 
-# while True:
-#   sleep(5)
-#   print('Sending message in 5 seconds')
-#   chat_client.send('Hi, im {}'.format(chat_client.socket.getsockname()))
 
-sleep(5)
 
-print('Disconnecting in 5 seconds')
-
-chat_client.disconnect()
+try:
+  while True:
+   sleep(1)
+   chat_client.send_message('Melhor que a entrega de vcs só a do alectron')
+   # chat_client.monitor()
+   
+   print('>>')
+  
+except KeyboardInterrupt:
+  print('Disconnecting...')
+  chat_client.disconnect()

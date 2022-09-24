@@ -1,7 +1,6 @@
 import socket
 from select import select
 from json import dumps, loads
-from struct import pack
 
 
 class Server:
@@ -62,6 +61,11 @@ class Chat (Server):
         self.create()
         self.listen()
 
+    def get_new_room_id(self):
+        """Get a new room id"""
+        self.number_of_rooms += 1
+        return str(self.number_of_rooms)
+    
     def create_package(self, type, data, sender_id):
         """Create a package package
         Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!}
@@ -77,8 +81,13 @@ class Chat (Server):
         """Parse a package from a client
         Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!, target_room_id: 1 || None}
         """
+        print('parsing package: {}'.format(package))
         return loads(package)
     
+    def send_room_message(self, room, message):
+        for client in room.clients:
+            client.send(message.encode())
+
     def build_menu(self, rooms):
         menu = """Chat rooms:\n\n{}""".format(
             ''.join([str(room.get_room_info()) for room in rooms.values()]))
@@ -97,13 +106,14 @@ class Chat (Server):
 
     def handle_client_request(self, client, rooms):
         package = self.parse_package(client.recv(self.buffer_size).decode())
-        #print('package: {}'.format(package))
         if package['type'] == 'message':
             print(' * Recieved message from {}({}): {}'.format( 
                 package['sender_username'],
                 package['sender_id'], package['data']))
+            
         
-        if package['type'] == 'join_room':
+        
+        elif package['type'] == 'join_room':
             print(' * Client {} wants to join room: {}'.format(package['sender_username'], package['target_room_id']))
             target_room_id = package['target_room_id']
             username = package['sender_username']
@@ -124,8 +134,3 @@ class Chat (Server):
             rooms[package['target_room_id']].remove_client(client)
             client.close()
 
-
-    def get_new_room_id(self):
-        """Get a new room id"""
-        self.number_of_rooms += 1
-        return str(self.number_of_rooms)
