@@ -175,6 +175,16 @@ class Chat (Server):
             print(' * Could not create room: {}'.format(e))
             client.send(' * Could not create room: {}'.format(e).encode())
         
+    def handle_user_disconnect(self, client, package):
+        """Handle a user disconnect"""
+        print(' * Client {} has disconnected'.format(package['sender_id']))
+        self.connections.remove(client)
+        if package['target_room_id'] in self.rooms:
+            self.rooms[package['target_room_id']].remove_client(client)
+            leave_notification = self.create_package('message', '{} has left the room'.format(package['sender_username']), self.id, 'Server')
+            self.send_room_message(client, self.rooms[package['target_room_id']], leave_notification)
+        client.close()
+
     def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
         
@@ -197,9 +207,5 @@ class Chat (Server):
             self.handle_user_create_room(client, package)
         
         elif package['type'] == 'disconnect':
-            print(' * {} pistolou e kitou. Tinha que ser careca :( '.format(package['sender_username']))
-            self.connections.remove(client)
-            if package['target_room_id'] in self.rooms:
-                self.rooms[package['target_room_id']].remove_client(client)
-            client.close()
+            self.handle_user_disconnect(client, package)
 
