@@ -106,6 +106,13 @@ class ChatClient (Client):
         room_name = input('Enter the room name: ')
         limit = input('Enter the max clients: ')
         self.send(self.create_package('create_room', {'room_name': room_name, 'limit': limit}))
+        print(' * Waiting for server confirmation...')
+        response = self.receive()
+        clear_terminal()
+        if response == 'ok':
+            print(' * Room created')
+        else: 
+            print(' * Error: {}'.format(response))
 
     # command method - /quit
     def disconnect(self):

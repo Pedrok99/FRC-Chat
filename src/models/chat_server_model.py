@@ -164,6 +164,16 @@ class Chat (Server):
         else:
             print(' * Room {} does not exist'.format(target_room_id))
         
+    def handle_user_create_room(self, client, package):
+        try:
+            room_name = package['data']['room_name']
+            room_limit = int(package['data']['limit'])
+            new_room_id = self.get_new_room_id()
+            self.rooms[new_room_id] = Room(new_room_id, room_name, room_limit)
+            client.send('ok'.encode())
+        except Exception as e:
+            print(' * Could not create room: {}'.format(e))
+            client.send(' * Could not create room: {}'.format(e).encode())
         
     def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
@@ -184,10 +194,7 @@ class Chat (Server):
             self.handle_user_leave_room(client, package)
               
         elif package['type'] == 'create_room':
-            room_name = package['data']['room_name']
-            room_limit = int(package['data']['limit'])
-            new_room_id = self.get_new_room_id()
-            self.rooms[new_room_id] = Room(new_room_id, room_name, room_limit)
+            self.handle_user_create_room(client, package)
         
         elif package['type'] == 'disconnect':
             print(' * {} pistolou e kitou. Tinha que ser careca :( '.format(package['sender_username']))
