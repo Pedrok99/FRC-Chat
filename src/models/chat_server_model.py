@@ -21,6 +21,7 @@ class Server:
 
         except socket.error as msg:
             print(" * Error: {}".format(msg))
+            self.socket.close()
             exit(1)
 
     def listen(self):
@@ -40,11 +41,11 @@ class Server:
         return client
 
     def get_message(self, client):
-        """Recieve a message from a client"""
+        """Read a message from a client"""
         return client.recv(self.buffer_size).decode()
 
     def send_message(self, client, message):
-        """Send a message to a client"""
+        """Encode and Send a message to a client"""
         client.send(message.encode())
 
     def close(self):
@@ -60,10 +61,11 @@ class Chat (Server):
         self.id = '{}:{}'.format(self.ip, self.port)
         self.number_of_rooms = 0
         self.rooms = {}
-        self.create()
-        self.listen()
         self.Room_class = Room_class
         self.rooms[str(self.number_of_rooms)] = Room_class(str(self.number_of_rooms), 'Main Lobby', max_clients=99)
+        # Init the server
+        self.create()
+        self.listen()
 
     def get_new_room_id(self):
         """Get a new room id"""
@@ -84,7 +86,7 @@ class Chat (Server):
 
     def parse_package(self, package):
         """Parse a package from a client
-        Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!, target_room_id: 1 || None}
+        Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!, target_room_id: Number || None}
         """
         print('parsing package: {}'.format(package))
         return loads(package)
@@ -104,13 +106,18 @@ class Chat (Server):
             self.connections + [self.socket], [], [])
         return readable_changes
 
+    # request handlers
+    
+    def handle_user_message(self, client, package):
+        """Handle a user message to a chat room"""
+        target_room = self.rooms[package['target_room_id']]
+        self.send_room_message(client, target_room, package)
+        
     def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
+        
         if package['type'] == 'message':
-            print(' * Recieved message from {}({}): {}'.format( 
-                package['sender_username'],
-                package['sender_id'], package['data']))
-            self.send_room_message(client, self.rooms[package['target_room_id']], package)
+            self.handle_user_message(client, package)
             
         elif package['type'] == 'list_rooms':
             menu = self.build_menu()
