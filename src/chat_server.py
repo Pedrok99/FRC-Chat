@@ -8,7 +8,6 @@ chat_manager = Chat(Room)
 try: 
   while True:
     updates = chat_manager.monitor()
-    print('>>')
     for client in updates:
       if client is chat_manager.socket:
         chat_manager.accept_connection()

@@ -113,6 +113,12 @@ class Chat (Server):
         target_room = self.rooms[package['target_room_id']]
         self.send_room_message(client, target_room, package)
         
+    def handle_user_list_rooms(self, client, package):
+        """Handle a user request to list all chat rooms"""
+        menu = self.build_menu()
+        package = self.create_package('menu', menu, self.id, 'Server')
+        self.send_message(client, package)
+        
     def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
         
@@ -120,9 +126,7 @@ class Chat (Server):
             self.handle_user_message(client, package)
             
         elif package['type'] == 'list_rooms':
-            menu = self.build_menu()
-            package = self.create_package('menu', menu, self.id, 'Server')
-            client.send(package.encode())
+            self.handle_user_list_rooms(client, package)
             
         elif package['type'] == 'room_info':
             room = self.rooms[package['target_room_id']]
