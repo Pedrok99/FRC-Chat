@@ -1,8 +1,8 @@
 import socket
-from time import sleep
 from json import dumps, loads
 from select import select
 from sys import stdin
+from utils.utils import clear_terminal
 
 
 class Client:
@@ -74,13 +74,27 @@ class ChatClient (Client):
     def join_room(self):
         selected_room = input('Enter the desired room: ')
         self.send(self.create_package('join_room', None, selected_room))
-        self.connected_room = selected_room
+        #should wait for server confirmation
+        print(' * Waiting for server confirmation...')
+        response = self.receive()
+        clear_terminal()
+        if response == 'ok':
+            self.connected_room = selected_room
+            print(' * Connected to room {}'.format(selected_room))
+        else: 
+            print(' * Error: {}'.format(response))
 
     # command method - /rooms
     def list_rooms(self):
         request_package = self.create_package('list_rooms', None)
         self.send(request_package)
     
+    # command method - /room_info
+    def room_info(self):
+        target_room = input('Enter the room id: ')
+        request_package = self.create_package('room_info', None, target_room_id=target_room)
+        self.send(request_package)
+        
     # command method - /leave
     def leave_room(self):
         self.send(self.create_package('leave_room', None ))
@@ -106,7 +120,7 @@ class ChatClient (Client):
         if package['type'] == 'message':
             print('{} >> {}'.format(
                 package['sender_username'], package['data']))
-        elif package['type'] == 'menu':
+        else:
             print(package['data'])
 
     def monitor(self):
@@ -127,6 +141,8 @@ class ChatClient (Client):
             self.show_commands()
         elif command == '/rooms':
             self.list_rooms()
+        elif command == '/room_info':
+            self.room_info()
         elif command == '/join':
             self.join_room()
         elif command == '/create':

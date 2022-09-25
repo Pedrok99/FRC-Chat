@@ -96,7 +96,7 @@ class Chat (Server):
 
     def build_menu(self):
         menu = """Chat rooms:\n{}""".format(
-            ''.join([str(room.get_room_info())+'\n' for room in self.rooms.values()]))
+            ''.join([str(room.get_room_status())+'\n' for room in self.rooms.values()]))
         return menu
 
     def monitor(self):
@@ -116,20 +116,27 @@ class Chat (Server):
             menu = self.build_menu()
             package = self.create_package('menu', menu, self.id, 'Server')
             client.send(package.encode())
+            
+        elif package['type'] == 'room_info':
+            room = self.rooms[package['target_room_id']]
+            package = self.create_package('room_info', room.get_room_users(), self.id, 'Server')
+            client.send(package.encode())
         elif package['type'] == 'join_room':
             print(' * Client {} wants to join room: {}'.format(package['sender_username'], package['target_room_id']))
             target_room_id = package['target_room_id']
             username = package['sender_username']
             sender_id = package['sender_id']
-
             if target_room_id in self.rooms:
                 if(self.rooms[target_room_id].can_join()):
-                    self.rooms[target_room_id].add_client(client)
+                    self.rooms[target_room_id].add_client(client, {'username': username, 'id': sender_id})
                     print(' * Client {} ({}) has joined room: {}'.format(username, sender_id, target_room_id))
+                    client.send('ok'.encode())
                 else:
                     print(' * Client {} ({}) could not join room: {}'.format(username, sender_id, target_room_id))
+                    client.send('Could not join room: {}'.format(target_room_id).encode())
             else:
                 print(' * Room {} does not exist'.format(target_room_id))
+                client.send(' * Room {} does not exist'.format(target_room_id).encode())
                 
         elif package['type'] == 'leave_room':
             print(' * Client {} wants to leave room: {}'.format(package['sender_username'], package['target_room_id']))
