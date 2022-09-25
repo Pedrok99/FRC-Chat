@@ -118,7 +118,13 @@ class Chat (Server):
         menu = self.build_menu()
         package = self.create_package('menu', menu, self.id, 'Server')
         self.send_message(client, package)
-        
+    
+    def handle_user_room_info(self, client, package):
+        """Handle a user request for listing room info"""
+        target_room = self.rooms[package['target_room_id']]
+        package = self.create_package('room_info', target_room.get_room_users(), self.id, 'Server')
+        self.send_message(client, package)
+            
     def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
         
@@ -129,9 +135,8 @@ class Chat (Server):
             self.handle_user_list_rooms(client, package)
             
         elif package['type'] == 'room_info':
-            room = self.rooms[package['target_room_id']]
-            package = self.create_package('room_info', room.get_room_users(), self.id, 'Server')
-            client.send(package.encode())
+            self.handle_user_room_info(client, package)
+            
         elif package['type'] == 'join_room':
             print(' * Client {} wants to join room: {}'.format(package['sender_username'], package['target_room_id']))
             target_room_id = package['target_room_id']
@@ -143,7 +148,7 @@ class Chat (Server):
                     print(' * Client {} ({}) has joined room: {}'.format(username, sender_id, target_room_id))
                     client.send('ok'.encode())
                 else:
-                    print(' * Client {} ({}) could not join room: {}'.format(username, sender_id, target_room_id))
+                    print(' * Ops :0. Looks like there is not enough space for you there :('.format(username, sender_id, target_room_id))
                     client.send('Could not join room: {}'.format(target_room_id).encode())
             else:
                 print(' * Room {} does not exist'.format(target_room_id))

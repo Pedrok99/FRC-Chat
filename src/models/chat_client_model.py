@@ -100,19 +100,18 @@ class ChatClient (Client):
     def leave_room(self):
         self.send(self.create_package('leave_room', None ))
         self.connected_room = None
-        
+    
+    # command method - /create
     def create_room(self):
         room_name = input('Enter the room name: ')
         limit = input('Enter the max clients: ')
         self.send(self.create_package('create_room', {'room_name': room_name, 'limit': limit}))
-    
 
     # command method - /quit
     def disconnect(self):
         self.send(self.create_package('disconnect', None))
         self.close()
-        
-    
+         
     # chat methods
     def send_message(self, message):
         """Send a package to the server"""
@@ -139,8 +138,9 @@ class ChatClient (Client):
                     if(self.connected_room != None):
                         self.send_message(message)
 
-    def command_handler(self, command):    
-        if command == '/commands' or command == '/cm':
+    def command_handler(self, command):
+        clear_terminal()    
+        if command == '/commands' or command == '/cm':         
             self.show_commands()
         elif command == '/rooms' or command == '/lr':
             self.list_rooms()
