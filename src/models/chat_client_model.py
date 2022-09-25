@@ -34,12 +34,13 @@ class ChatClient (Client):
         self.connect()
         self.connected_room = None
         self.available_commands = {
-            '/commands': 'Show available commands',
-            '/rooms': 'Show all rooms',
-            '/create': 'Create a new room',
-            '/join': 'Join a room',
-            '/leave': 'Leave the current room',
-            '/quit': 'Quit the chat app'
+            '/commands - /cm': 'Show available commands',
+            '/rooms - /lr': 'List all rooms',
+            '/room_info - /ri': 'Show room info',
+            '/create - /cr': 'Create a new room',
+            '/join - /jr': 'Join a room',
+            '/leave - /lr': 'Leave the current room',
+            '/quit - /q': 'Quit the chat app'
         }
 
     # package managment methods
@@ -100,7 +101,9 @@ class ChatClient (Client):
         self.send(self.create_package('leave_room', None ))
         self.connected_room = None
         
-    def create_room(self, room_name, limit):
+    def create_room(self):
+        room_name = input('Enter the room name: ')
+        limit = input('Enter the max clients: ')
         self.send(self.create_package('create_room', {'room_name': room_name, 'limit': limit}))
     
 
@@ -137,22 +140,20 @@ class ChatClient (Client):
                         self.send_message(message)
 
     def command_handler(self, command):    
-        if command == '/commands':
+        if command == '/commands' or command == '/cm':
             self.show_commands()
-        elif command == '/rooms':
+        elif command == '/rooms' or command == '/lr':
             self.list_rooms()
-        elif command == '/room_info':
+        elif command == '/room_info' or command == '/ri':
             self.room_info()
-        elif command == '/join':
+        elif command == '/join' or command == '/jr':
             self.join_room()
-        elif command == '/create':
-            room_name = input('Enter the room name: ')
-            max_clients = input('Enter the max clients: ')
-            self.create_room(room_name, max_clients)
-        elif command == '/leave':
+        elif command == '/create' or command == '/cr':
+            self.create_room()
+        elif command == '/leave' or command == '/lr':
             self.leave_room()
-        elif command == '/quit':
-            print('Exiting app...')
+        elif command == '/quit' or command == '/q':
+            print(' * Exiting app...')
             self.disconnect()
             exit(0)
         else:
