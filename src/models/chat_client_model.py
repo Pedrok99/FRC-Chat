@@ -36,6 +36,7 @@ class ChatClient (Client):
         self.available_commands = {
             '/commands': 'Show available commands',
             '/rooms': 'Show all rooms',
+            '/create': 'Create a new room',
             '/join': 'Join a room',
             '/leave': 'Leave the current room',
             '/quit': 'Quit the chat app'
@@ -106,7 +107,7 @@ class ChatClient (Client):
             print('{} >> {}'.format(
                 package['sender_username'], package['data']))
         elif package['type'] == 'menu':
-            print('{}\n'.format(package['data']))
+            print(package['data'])
 
     def monitor(self):
         readable_changes, _, _ = select([self.socket, stdin], [], [])
@@ -118,7 +119,8 @@ class ChatClient (Client):
                 if message.startswith('/'):
                     self.command_handler(message)
                 else:
-                    self.send_message(message)
+                    if(self.connected_room != None):
+                        self.send_message(message)
 
     def command_handler(self, command):    
         if command == '/commands':

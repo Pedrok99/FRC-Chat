@@ -1,7 +1,8 @@
 import socket
 from select import select
 from json import dumps, loads
-from chat_room import Room
+
+from models.chat_room import Room
 
 class Server:
     def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
@@ -62,7 +63,7 @@ class Chat (Server):
         self.create()
         self.listen()
         self.Room_class = Room_class
-        self.rooms[self.number_of_rooms] = Room(self.number_of_rooms, 'Main Lobby', max_clients=99)
+        self.rooms[str(self.number_of_rooms)] = Room_class(str(self.number_of_rooms), 'Main Lobby', max_clients=99)
 
     def get_new_room_id(self):
         """Get a new room id"""
@@ -93,9 +94,9 @@ class Chat (Server):
             if client != sender:
                 client.send(dumps(package).encode())
 
-    def build_menu(self, rooms):
+    def build_menu(self):
         menu = """Chat rooms:\n{}""".format(
-            ''.join([str(room.get_room_info()) for room in rooms.values()]))
+            ''.join([str(room.get_room_info())+'\n' for room in self.rooms.values()]))
         return menu
 
     def monitor(self):
@@ -103,16 +104,16 @@ class Chat (Server):
             self.connections + [self.socket], [], [])
         return readable_changes
 
-    def handle_client_request(self, client, rooms): 
+    def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
         if package['type'] == 'message':
             print(' * Recieved message from {}({}): {}'.format( 
                 package['sender_username'],
                 package['sender_id'], package['data']))
-            self.send_room_message(client, rooms[package['target_room_id']], package)
+            self.send_room_message(client, self.rooms[package['target_room_id']], package)
             
         elif package['type'] == 'list_rooms':
-            menu = self.build_menu(rooms)
+            menu = self.build_menu()
             package = self.create_package('menu', menu, self.id, 'Server')
             client.send(package.encode())
         elif package['type'] == 'join_room':
@@ -121,9 +122,9 @@ class Chat (Server):
             username = package['sender_username']
             sender_id = package['sender_id']
 
-            if target_room_id in rooms:
-                if(rooms[target_room_id].can_join()):
-                    rooms[target_room_id].add_client(client)
+            if target_room_id in self.rooms:
+                if(self.rooms[target_room_id].can_join()):
+                    self.rooms[target_room_id].add_client(client)
                     print(' * Client {} ({}) has joined room: {}'.format(username, sender_id, target_room_id))
                 else:
                     print(' * Client {} ({}) could not join room: {}'.format(username, sender_id, target_room_id))
@@ -136,22 +137,22 @@ class Chat (Server):
             username = package['sender_username']
             sender_id = package['sender_id']
 
-            if target_room_id in rooms:
-                rooms[target_room_id].remove_client(client)
+            if target_room_id in self.rooms:
+                self.rooms[target_room_id].remove_client(client)
                 print(' * Client {} ({}) has left room: {}'.format(username, sender_id, target_room_id))
             else:
                 print(' * Room {} does not exist'.format(target_room_id))
               
         elif package['type'] == 'create_room':
             room_name = package['data']['room_name']
-            room_limit = package['data']['limit']
-            print('create room', package['data']['room_name'])
-            rooms[self.get_new_room_id()] = Room(room_name, room_limit)
+            room_limit = int(package['data']['limit'])
+            new_room_id = self.get_new_room_id()
+            self.rooms[new_room_id] = Room(new_room_id, room_name, room_limit)
         
         elif package['type'] == 'disconnect':
             print(' * {} pistolou e kitou. Tinha que ser careca :( '.format(package['sender_username']))
             self.connections.remove(client)
-            if package['target_room_id'] in rooms:
-                rooms[package['target_room_id']].remove_client(client)
+            if package['target_room_id'] in self.rooms:
+                self.rooms[package['target_room_id']].remove_client(client)
             client.close()
 

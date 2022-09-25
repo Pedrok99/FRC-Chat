@@ -3,12 +3,7 @@ from models.chat_server_model import Chat
 from models.chat_room import Room
 from utils.utils import clear_terminal
 
-rooms = {}
-
 chat_manager = Chat(Room)
-
-fixed_lobby_id = chat_manager.get_new_room_id()
-rooms[fixed_lobby_id] = Room(fixed_lobby_id, 'Main Lobby', max_clients=99)
 
 try: 
   while True:
@@ -18,6 +13,6 @@ try:
       if client is chat_manager.socket:
         chat_manager.accept_connection()
       else:
-        chat_manager.handle_client_request(client, rooms)
+        chat_manager.handle_client_request(client)
 except KeyboardInterrupt:
   chat_manager.close()
