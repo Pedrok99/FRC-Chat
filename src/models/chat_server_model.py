@@ -1,4 +1,3 @@
-from ast import dump
 import socket
 from select import select
 from json import dumps, loads
@@ -113,7 +112,6 @@ class Chat (Server):
         return readable_changes
 
     # request handlers
-
     def handle_user_message(self, client, package):
         """Handle a user message to a chat room"""
         target_room = self.rooms[package['target_room_id']]

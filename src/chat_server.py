@@ -1,7 +1,5 @@
-from time import sleep
 from models.chat_server_model import Chat
 from models.chat_room import Room
-from utils.utils import clear_terminal
 
 chat_manager = Chat(Room)
 
