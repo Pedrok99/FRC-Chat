@@ -79,6 +79,15 @@ class ChatClient (Client):
     def list_rooms(self):
         request_package = self.create_package('list_rooms', None)
         self.send(request_package)
+    
+    # command method - /leave
+    def leave_room(self):
+        self.send(self.create_package('leave_room', None ))
+        self.connected_room = None
+        
+    def create_room(self, room_name, limit):
+        self.send(self.create_package('create_room', {'room_name': room_name, 'limit': limit}))
+    
 
     # command method - /quit
     def disconnect(self):
@@ -111,16 +120,22 @@ class ChatClient (Client):
                 else:
                     self.send_message(message)
 
-    def command_handler(self, command):
-        if command not in self.available_commands:
-            print(' * Command not found, please try again')
-        elif command == '/commands':
+    def command_handler(self, command):    
+        if command == '/commands':
             self.show_commands()
         elif command == '/rooms':
             self.list_rooms()
         elif command == '/join':
             self.join_room()
+        elif command == '/create':
+            room_name = input('Enter the room name: ')
+            max_clients = input('Enter the max clients: ')
+            self.create_room(room_name, max_clients)
+        elif command == '/leave':
+            self.leave_room()
         elif command == '/quit':
             print('Exiting app...')
             self.disconnect()
             exit(0)
+        else:
+             print(' * Command not found, please try again')

@@ -5,7 +5,7 @@ from utils.utils import clear_terminal
 
 rooms = {}
 
-chat_manager = Chat()
+chat_manager = Chat(Room)
 
 fixed_lobby_id = chat_manager.get_new_room_id()
 rooms[fixed_lobby_id] = Room(fixed_lobby_id, 'Main Lobby', max_clients=99)

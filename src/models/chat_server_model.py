@@ -1,7 +1,7 @@
 import socket
 from select import select
 from json import dumps, loads
-
+from chat_room import Room
 
 class Server:
     def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
@@ -54,12 +54,15 @@ class Server:
 
 
 class Chat (Server):
-    def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
+    def __init__(self, Room_class, ip='localhost', port=2222, max_connections=5, buffer_size=1024 ):
         super().__init__(ip, port, max_connections, buffer_size)
         self.id = '{}:{}'.format(self.ip, self.port)
         self.number_of_rooms = 0
+        self.rooms = {}
         self.create()
         self.listen()
+        self.Room_class = Room_class
+        self.rooms[self.number_of_rooms] = Room(self.number_of_rooms, 'Main Lobby', max_clients=99)
 
     def get_new_room_id(self):
         """Get a new room id"""
@@ -108,8 +111,10 @@ class Chat (Server):
                 package['sender_id'], package['data']))
             self.send_room_message(client, rooms[package['target_room_id']], package)
             
-        
-        
+        elif package['type'] == 'list_rooms':
+            menu = self.build_menu(rooms)
+            package = self.create_package('menu', menu, self.id, 'Server')
+            client.send(package.encode())
         elif package['type'] == 'join_room':
             print(' * Client {} wants to join room: {}'.format(package['sender_username'], package['target_room_id']))
             target_room_id = package['target_room_id']
@@ -124,14 +129,24 @@ class Chat (Server):
                     print(' * Client {} ({}) could not join room: {}'.format(username, sender_id, target_room_id))
             else:
                 print(' * Room {} does not exist'.format(target_room_id))
+                
+        elif package['type'] == 'leave_room':
+            print(' * Client {} wants to leave room: {}'.format(package['sender_username'], package['target_room_id']))
+            target_room_id = package['target_room_id']
+            username = package['sender_username']
+            sender_id = package['sender_id']
 
-        elif package['type'] == 'list_rooms':
-            menu = self.build_menu(rooms)
-            package = self.create_package('menu', menu, self.id, 'Server')
-            client.send(package.encode())
-            
+            if target_room_id in rooms:
+                rooms[target_room_id].remove_client(client)
+                print(' * Client {} ({}) has left room: {}'.format(username, sender_id, target_room_id))
+            else:
+                print(' * Room {} does not exist'.format(target_room_id))
+              
         elif package['type'] == 'create_room':
-            print('create room')
+            room_name = package['data']['room_name']
+            room_limit = package['data']['limit']
+            print('create room', package['data']['room_name'])
+            rooms[self.get_new_room_id()] = Room(room_name, room_limit)
         
         elif package['type'] == 'disconnect':
             print(' * {} pistolou e kitou. Tinha que ser careca :( '.format(package['sender_username']))
