@@ -1,8 +1,10 @@
+from ast import dump
 import socket
 from select import select
 from json import dumps, loads
 
 from models.chat_room import Room
+
 
 class Server:
     def __init__(self, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
@@ -56,13 +58,14 @@ class Server:
 
 
 class Chat (Server):
-    def __init__(self, Room_class, ip='localhost', port=2222, max_connections=5, buffer_size=1024 ):
+    def __init__(self, Room_class, ip='localhost', port=2222, max_connections=5, buffer_size=1024):
         super().__init__(ip, port, max_connections, buffer_size)
         self.id = '{}:{}'.format(self.ip, self.port)
         self.number_of_rooms = 0
         self.rooms = {}
         self.Room_class = Room_class
-        self.rooms[str(self.number_of_rooms)] = Room_class(str(self.number_of_rooms), 'Main Lobby', max_clients=99)
+        self.rooms[str(self.number_of_rooms)] = Room_class(
+            str(self.number_of_rooms), 'Main Lobby', max_clients=99)
         # Init the server
         self.create()
         self.listen()
@@ -71,7 +74,7 @@ class Chat (Server):
         """Get a new room id"""
         self.number_of_rooms += 1
         return str(self.number_of_rooms)
-    
+
     def create_package(self, type, data, sender_id, sender_username):
         """Create a package package
         Ex: {type: 'message', sender_id: 'ip:port', data: 'Hello world!}
@@ -90,11 +93,14 @@ class Chat (Server):
         """
         print('parsing package: {}'.format(package))
         return loads(package)
-    
+
     def send_room_message(self, sender, room, package):
+        # check if package is parsed or not
+        if type(package) is dict:
+            package = dumps(package)
         for client in room.clients:
             if client != sender:
-                client.send(dumps(package).encode())
+                client.send(package.encode())
 
     def build_menu(self):
         menu = """Chat rooms:\n{}""".format(
@@ -107,24 +113,58 @@ class Chat (Server):
         return readable_changes
 
     # request handlers
-    
+
     def handle_user_message(self, client, package):
         """Handle a user message to a chat room"""
         target_room = self.rooms[package['target_room_id']]
         self.send_room_message(client, target_room, package)
-        
+
     def handle_user_list_rooms(self, client, package):
         """Handle a user request to list all chat rooms"""
         menu = self.build_menu()
         package = self.create_package('menu', menu, self.id, 'Server')
         self.send_message(client, package)
-    
+
     def handle_user_room_info(self, client, package):
         """Handle a user request for listing room info"""
         target_room = self.rooms[package['target_room_id']]
-        package = self.create_package('room_info', target_room.get_room_users(), self.id, 'Server')
+        package = self.create_package(
+            'room_info', target_room.get_room_users(), self.id, 'Server')
         self.send_message(client, package)
-            
+
+    def handle_user_join_room(self, client, package):
+        """Handle a user request to join a chat room"""
+        target_room_id = package['target_room_id']
+        username = package['sender_username']
+        sender_id = package['sender_id']
+        if target_room_id in self.rooms:
+            if(self.rooms[target_room_id].can_join()):
+                self.rooms[target_room_id].add_client(client, {'username': username, 'id': sender_id})
+                print(' * Client {} ({}) has joined room: {}'.format(username, sender_id, target_room_id))
+                client.send('ok'.encode())
+                join_notification = self.create_package('message', '{} has joined the room'.format(username), self.id, 'Server')
+                self.send_room_message(client, self.rooms[target_room_id], join_notification)
+            else:
+                print('* Could not join room: {}'.format(username, sender_id, target_room_id))
+                client.send(' * Looks like there is not enough space for you there :('.encode())
+        else:
+            print(' * Room {} does not exist'.format(target_room_id))
+            client.send(' * Room {} does not exist'.format(target_room_id).encode())
+        
+    def handle_user_leave_room(self, client, package):
+        target_room_id = package['target_room_id']
+        username = package['sender_username']
+        sender_id = package['sender_id']
+        print(' * Client {} wants to leave room: {}'.format(username, target_room_id))
+        if target_room_id in self.rooms:
+            self.rooms[target_room_id].remove_client(client)
+            print(' * Client {} ({}) has left room: {}'.format(username, sender_id, target_room_id))
+            leave_notification = self.create_package('message', '{} has left the room'.format(username), self.id, 'Server')
+            self.send_room_message(client, self.rooms[target_room_id], leave_notification)
+        else:
+            print(' * Room {} does not exist'.format(target_room_id))
+        
+        
     def handle_client_request(self, client): 
         package = self.parse_package(client.recv(self.buffer_size).decode())
         
@@ -138,33 +178,10 @@ class Chat (Server):
             self.handle_user_room_info(client, package)
             
         elif package['type'] == 'join_room':
-            print(' * Client {} wants to join room: {}'.format(package['sender_username'], package['target_room_id']))
-            target_room_id = package['target_room_id']
-            username = package['sender_username']
-            sender_id = package['sender_id']
-            if target_room_id in self.rooms:
-                if(self.rooms[target_room_id].can_join()):
-                    self.rooms[target_room_id].add_client(client, {'username': username, 'id': sender_id})
-                    print(' * Client {} ({}) has joined room: {}'.format(username, sender_id, target_room_id))
-                    client.send('ok'.encode())
-                else:
-                    print(' * Ops :0. Looks like there is not enough space for you there :('.format(username, sender_id, target_room_id))
-                    client.send('Could not join room: {}'.format(target_room_id).encode())
-            else:
-                print(' * Room {} does not exist'.format(target_room_id))
-                client.send(' * Room {} does not exist'.format(target_room_id).encode())
+            self.handle_user_join_room(client, package)
                 
         elif package['type'] == 'leave_room':
-            print(' * Client {} wants to leave room: {}'.format(package['sender_username'], package['target_room_id']))
-            target_room_id = package['target_room_id']
-            username = package['sender_username']
-            sender_id = package['sender_id']
-
-            if target_room_id in self.rooms:
-                self.rooms[target_room_id].remove_client(client)
-                print(' * Client {} ({}) has left room: {}'.format(username, sender_id, target_room_id))
-            else:
-                print(' * Room {} does not exist'.format(target_room_id))
+            self.handle_user_leave_room(client, package)
               
         elif package['type'] == 'create_room':
             room_name = package['data']['room_name']
